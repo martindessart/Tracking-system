@@ -9,6 +9,10 @@ Mosquito larvae display a stereotyped escape response when they rest attached to
 
 # Folders
 
+## 0)Video examples
+Don't hesitate to download and look at the three videos edited. They represent a set of ten individuals for the three species studied.
+The inter-trial intervals are speeded-up. Anopheles video corresponds to Control n°1 (i.e. + vibration after ten trials)
+
 ## 1)Tracking program
 To use on videos to extract individual coordinates and surface
 
