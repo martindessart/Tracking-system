@@ -1,0 +1,307 @@
+---
+title: "Complement data for: Assessing learning in mosquito larvae using video-tracking"
+author: "Martin Dessart"
+date: "08/06/2023"
+output:
+  html_document:
+    toc: true
+    theme: united
+  pdf_document: default
+  word_document: default
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,fig.width=15,fig.height=8)
+```
+# 0) Setup
+```{r,echo=FALSE,warning=FALSE, message=FALSE}
+## Libraries ----
+library(dplyr)
+library(car)
+library(ggeffects)
+library(ggplot2)
+rm(list=ls())
+set.seed(666) #Fix kernell
+## Open files and add metadata ----
+setwd("/Users/martin/Desktop/2)Data/4_Grouped")
+Aedes<-read.table("Aedes.csv", sep="",header=T) %>% filter(gp=="ITI") %>% 
+  mutate(sp="Aedes aegypti")
+Aedes$cat<-as.factor(Aedes$cat)
+Aedes$ID<-as.factor(Aedes$ID)
+Aedes$ct<-as.factor(Aedes$ct)
+Aedes$day<-as.factor(Aedes$day)
+Aedes$pck<-as.factor(Aedes$pck)
+Aedes$expe<-as.factor(Aedes$expe)
+#str(Aedes)
+Culex<-read.table("Culex.csv", sep="",header=T) %>% filter(gp=="ITI")%>% 
+  mutate(sp="Culex")
+Culex$cat<-as.factor(Culex$cat)
+Culex$ID<-as.factor(Culex$ID)
+Culex$ct<-as.factor(Culex$ct)
+Culex$day<-as.factor(Culex$day)
+Culex$pck<-as.factor(Culex$pck)
+Culex$expe<-as.factor(Culex$expe)
+#str(Culex)
+Anopheles<-read.table("Anopheles.csv", sep="",header=T) %>% filter(gp=="ITI")%>% 
+  mutate(sp="Anopheles")
+Anopheles$cat<-as.factor(Anopheles$cat)
+Anopheles$ID<-as.factor(Anopheles$ID)
+Anopheles$ct<-as.factor(Anopheles$ct)
+Anopheles$day<-as.factor(Anopheles$day)
+Anopheles$pck<-as.factor(Anopheles$pck)
+Anopheles$expe<-as.factor(Anopheles$expe)
+#str(Anopheles)
+All<-bind_rows(Aedes,Culex,Anopheles)
+```
+
+# 1) Total distance
+
+```{r,echo=FALSE,warning=FALSE, message=FALSE}
+Td<-All %>% 
+  group_by(sp,ct,ID) %>% 
+  summarise(absdY=sum(absdY,na.rm=T)) %>% 
+  mutate(amy=absdY/10000) %>% ungroup()
+
+ggplot(Td,aes(x=sp,y=amy,group=sp,color=sp))+
+  geom_boxplot(alpha=0.8)+
+  geom_jitter(alpha=0.8)+
+  stat_summary(fun = "mean", geom = "point",size=3,color="black",shape=15)+
+  theme_classic() +
+  labs(y="Absolute vertical distance AVD (m)",x="")+
+  theme(plot.title = element_text(hjust = 0.5))+
+  theme(plot.title = element_text(size=22,face = "bold"))+
+  theme(axis.text=element_text(size=20),
+        axis.title=element_text(size=20))+
+  scale_color_manual(values=c("#531B93","#009193","#941751"))+
+  scale_fill_manual(values=c("#531B93","#009193","#941751"))+
+  theme(legend.title = element_text(size=20),
+        legend.text = element_text(size=20))+
+  guides(colour=guide_legend(title="Species"))+
+  theme(legend.position = "none",
+        strip.text = element_text(size = 20))
+```
+
+
+# 2) Distance by ITI
+
+```{r,echo=FALSE,warning=FALSE, message=FALSE}
+Etime<-All %>% filter(ct!=3) %>% filter(cat!=10) %>% filter(cat!=11) %>% 
+  group_by(sp,ct,cat,ID) %>% 
+  summarise(absdY=sum(absdY,na.rm=T)) %>%
+  mutate(amy=absdY/1000) %>% ungroup()
+
+dae<-glm(amy~cat*sp, data=Etime)
+yv <- predict(dae,type="link",se.fit=TRUE)
+ydAE<-data.frame(yv$fit,yv$se.fit,Etime$cat,Etime$ct,Etime$sp)
+inv<-family(dae)$linkinv
+
+ggplot(ydAE, aes(x=Etime.cat,y=inv(yv.fit)))+
+  geom_pointrange(aes(ymin=inv(yv.fit-1.96*yv.se.fit), ymax=inv((yv.fit+1.96*yv.se.fit)),
+                      group=Etime.sp,color=Etime.sp),size=1)+
+  theme_classic() +
+  labs(y="Absolute vertical distance AVD (m)",x="Intertrial intervals")+
+  theme(plot.title = element_text(hjust = 0.5))+
+  theme(plot.title = element_text(size=22,face = "bold"))+
+  theme(axis.text=element_text(size=20,color="black"),
+        axis.title=element_text(size=20,color="black"))+
+  scale_color_manual(values=c("#531B93","#009193","#941751"))+
+  scale_fill_manual(values=c("#531B93","#009193","#941751"))+
+  theme(legend.title = element_text(size=20),
+        legend.text = element_text(size=20))+
+  guides(colour=guide_legend(title="Species"))+
+  theme(legend.position = "none",
+        strip.text = element_text(size = 18))+
+  facet_wrap(~Etime.sp)
+```
+
+# 3) Av speed
+
+```{r,echo=FALSE,warning=FALSE, message=FALSE}
+TaG<-All %>% 
+  filter(ct!=3) %>% 
+  mutate(sec=round(sec,digits=0)) %>%
+  group_by(sp,ct,ID,sec) %>%
+  summarise(absdY=sum(absdY,na.rm=T))
+Ta2<-TaG %>% 
+  group_by(sp,ct,ID) %>%
+  summarise(absdY=mean(absdY,na.rm=T))
+ggplot(Ta2,aes(x=sp,y=absdY,group=sp,color=sp))+
+  geom_boxplot(alpha=0.8)+
+  geom_jitter(alpha=0.8)+
+  stat_summary(fun = "mean", geom = "point",color="black",size=3,shape=15)+
+  labs(y="Average speed (mm/sec)",x="")+
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5))+
+  theme(plot.title = element_text(size=22,face = "bold"))+
+  theme(axis.text=element_text(size=20,color="black"),
+        axis.title=element_text(size=20,color="black"))+
+  scale_color_manual(values=c("#531B93","#009193","#941751"))+
+  scale_fill_manual(values=c("#531B93","#009193","#941751"))+
+  theme(legend.title = element_text(size=20),
+        legend.text = element_text(size=20))+
+  guides(colour=guide_legend(title="Species"))+
+  theme(legend.position = "none",
+        strip.text = element_text(size = 18))
+```
+
+
+# 4) Max speed
+```{r,echo=FALSE,warning=FALSE, message=FALSE}
+TmG<-All %>% 
+  filter(ct!=3) %>% 
+  mutate(sec=round(sec,digits=0)) %>%
+  group_by(sp,ct,ID,sec) %>%
+  summarise(absdY=sum(absdY,na.rm=T)) %>% 
+  group_by(sp,ct,ID) %>%
+  summarise(absdY=max(absdY,na.rm=T))
+
+ggplot(TmG,aes(x=sp,y=absdY,group=sp,color=sp))+
+  geom_boxplot(alpha=0.8,outlier.shape = NA)+
+  geom_jitter(alpha=0.8)+
+  stat_summary(fun = "mean", geom = "point",color="black",size=3,shape=15)+
+  labs(y="Max speed (mm/sec)",x="")+
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5))+
+  theme(plot.title = element_text(size=22,face = "bold"))+
+  theme(axis.text=element_text(size=20,color="black"),
+        axis.title=element_text(size=20,color="black"))+
+  scale_color_manual(values=c("#531B93","#009193","#941751"))+
+  scale_fill_manual(values=c("#531B93","#009193","#941751"))+
+  theme(legend.title = element_text(size=20),
+        legend.text = element_text(size=20))+
+  guides(colour=guide_legend(title="Species"))+
+  theme(legend.position = "none",
+        strip.text = element_text(size = 18))
+```
+
+
+# 5) TZ
+```{r,echo=FALSE,warning=FALSE, message=FALSE}
+dpos<-All %>% group_by(sp,ct,ID) %>% filter(ct!=3) %>% 
+  summarise(dpos=max(pos_y),
+            pos_y=mean(pos_y))
+
+dist<-mean(dpos$dpos,na.rm=T)
+c<-dist/3
+
+TZ<-All %>% mutate(count=1) %>% 
+  mutate(Zone = case_when(pos_y < c ~ "Top",
+                          pos_y >= c & pos_y < 2*c ~ "Middle",
+                          pos_y >= 2*c ~ "Bottom")) %>% 
+  group_by(sp,ct,Zone,ID) %>%
+  summarise(count=sum(count,na.rm=T),
+            absdY=mean(absdY,na.rm=T),
+            pos_y=mean(pos_y)) %>% ungroup()
+
+TZ1<-TZ %>% 
+  group_by(sp,ID,Zone) %>%
+  summarise(count=mean(count,na.rm=T),
+            absdY=mean(absdY,na.rm=T),
+            pos_y=mean(pos_y))%>% ungroup()
+
+TZA<-TZ1 %>%group_by(sp,ID) %>%  mutate(spend=100*count/sum(count)) %>% ungroup()
+tzb<-TZA %>% 
+  group_by(sp,Zone) %>% summarise(spend=mean(spend),
+                                  absdY=mean(absdY,na.rm=T),
+                                  pos_y=mean(pos_y))
+ggplot(tzb)+
+  geom_point(aes(y=Zone,x=sp,size=spend,colour=sp))+
+  theme_classic() +
+  labs(y="Zones",x="")+
+  theme(plot.title = element_text(hjust = 0.5))+
+  theme(plot.title = element_text(size=22,face = "bold"))+
+  theme(axis.text=element_text(size=20,color="black"),
+        axis.title=element_text(size=20,color="black"))+
+  scale_color_manual(values=c("#531B93","#009193","#941751"))+
+  scale_fill_manual(values=c("#531B93","#009193","#941751"))+
+  theme(legend.title = element_text(size=20),
+        legend.text = element_text(size=20))+
+  guides(colour=guide_legend(title="Species"))+
+  theme(strip.text = element_text(size = 18))+
+  scale_size(range = c(.1, 30), name="% Time spent")
+```
+
+
+# 6) TM
+```{r,echo=FALSE,warning=FALSE, message=FALSE}
+lim<-1
+
+casef<-All %>% 
+  group_by(sp,ct,ID) %>% 
+  mutate(mov = case_when(absdY < lim ~ 0,
+                         absdY >= lim ~ 1)) %>% ungroup()
+iltf<-casef %>% 
+  group_by(sp,ct,ID) %>% 
+  summarise(umov=sum(mov,na.rm=T),
+            n=n(),
+            tmov=(umov/n)*100,
+            pos_y=mean(pos_y)) %>% ungroup()
+ggplot(iltf,aes(x=sp,y=tmov,group=sp,color=sp))+
+  geom_boxplot(alpha=0.8)+
+  geom_jitter(alpha=0.8)+
+  stat_summary(fun = "mean", geom = "point",size=3,color="black",shape=15)+
+  theme_classic() +
+  labs(y="Time spent moving (%)",x="")+
+  theme(plot.title = element_text(hjust = 0.5))+
+  theme(plot.title = element_text(size=22,face = "bold"))+
+  theme(axis.text=element_text(size=20,color="black"),
+        axis.title=element_text(size=20,color="black"))+
+  scale_color_manual(values=c("#531B93","#009193","#941751"))+
+  scale_fill_manual(values=c("#531B93","#009193","#941751"))+
+  theme(legend.title = element_text(size=20),
+        legend.text = element_text(size=20))+
+  guides(colour=guide_legend(title="Species"))+
+  theme(legend.position = "none",
+        strip.text = element_text(size = 18))
+```
+# 7) Diving events
+```{r,echo=FALSE,warning=FALSE, message=FALSE}
+TP<-All %>% 
+  group_by(sp,ct,ID) %>%
+  summarise(plong=mean(plong,na.rm=T))
+ggplot(TP,aes(x=sp,y=plong,group=sp,color=sp))+
+  geom_boxplot(alpha=0.8)+
+  geom_jitter(alpha=0.8)+
+  stat_summary(fun = "mean", geom = "point",size=3,color="black",shape=15)+
+  theme_classic() +
+  labs(y="Number of diving event",x="")+
+  theme(plot.title = element_text(hjust = 0.5))+
+  theme(plot.title = element_text(size=22,face = "bold"))+
+  theme(axis.text=element_text(size=20,color="black"),
+        axis.title=element_text(size=20,color="black"))+
+  scale_color_manual(values=c("#531B93","#009193","#941751"))+
+  scale_fill_manual(values=c("#531B93","#009193","#941751"))+
+  theme(legend.title = element_text(size=20),
+        legend.text = element_text(size=20))+
+  guides(colour=guide_legend(title="Species"))+
+  theme(legend.position = "none",
+        strip.text = element_text(size = 18))
+```
+
+# 8) Max Surface
+```{r,echo=FALSE,warning=FALSE, message=FALSE}
+Tsize<-All %>% 
+  filter(ct!=3) %>% 
+  filter(pos_y>50&pos_y<350) %>% 
+  group_by(sp,ct,ID) %>%
+  summarise(sizem=max(size*45/400,na.rm=T),
+            usize=mean(size*45/400,na.rm=T))
+
+ggplot(Tsize,aes(x=sp,y=usize,group=sp,color=sp))+
+  geom_boxplot(alpha=0.8)+
+  geom_jitter(alpha=0.8)+
+  stat_summary(fun = "mean", geom = "point",size=3,color="black",shape=15)+
+  theme_classic() +
+  labs(y="Maximum surface (mm2)",x="")+
+  theme(plot.title = element_text(hjust = 0.5))+
+  theme(plot.title = element_text(size=22,face = "bold"))+
+  theme(axis.text=element_text(size=15),
+        axis.title=element_text(size=20))+
+  scale_color_manual(values=c("#531B93","#009193","#941751"))+
+  scale_fill_manual(values=c("#531B93","#009193","#941751"))+
+  theme(legend.title = element_text(size=20),
+        legend.text = element_text(size=16))+
+  guides(colour=guide_legend(title="Species"))+
+  theme(legend.position = "none",
+        strip.text = element_text(size = 18))
+```
+

@@ -1,0 +1,758 @@
+---
+title: "Complement data for: Assessing learning in mosquito larvae using video-tracking"
+author: "Martin Dessart"
+date: "08/06/2023"
+output:
+  html_document:
+    toc: true
+    theme: united
+  pdf_document: default
+  word_document: default
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,fig.width=15,fig.height=8)
+```
+# 0) Setup
+```{r,echo=FALSE,warning=FALSE, message=FALSE}
+## Libraries ----
+library(dplyr)
+library(car)
+library(ggeffects)
+library(ggplot2)
+rm(list=ls())
+set.seed(666) #Fix kernell
+## Open files and add metadata ----
+setwd("/Users/martin/Desktop/2)Data/4_Grouped")
+Aedes<-read.table("Aedes.csv", sep="",header=T) %>% filter(gp=="Sti")
+Aedes$cat<-as.factor(Aedes$cat)
+Aedes$ID<-as.factor(Aedes$ID)
+Aedes$ct<-as.factor(Aedes$ct)
+Aedes$day<-as.factor(Aedes$day)
+Aedes$pck<-as.factor(Aedes$pck)
+Aedes$expe<-as.factor(Aedes$expe)
+#str(Aedes)
+Culex<-read.table("Culex.csv", sep="",header=T) %>% filter(gp=="Sti")
+Culex$cat<-as.factor(Culex$cat)
+Culex$ID<-as.factor(Culex$ID)
+Culex$ct<-as.factor(Culex$ct)
+Culex$day<-as.factor(Culex$day)
+Culex$pck<-as.factor(Culex$pck)
+Culex$expe<-as.factor(Culex$expe)
+#str(Culex)
+Anopheles<-read.table("Anopheles.csv", sep="",header=T) %>% filter(gp=="Sti")
+Anopheles$cat<-as.factor(Anopheles$cat)
+Anopheles$ID<-as.factor(Anopheles$ID)
+Anopheles$ct<-as.factor(Anopheles$ct)
+Anopheles$day<-as.factor(Anopheles$day)
+Anopheles$pck<-as.factor(Anopheles$pck)
+Anopheles$expe<-as.factor(Anopheles$expe)
+#str(Anopheles)
+
+```
+
+# 1) Apply thresholds
+
+```{r,echo=FALSE,warning=FALSE, message=FALSE}
+## 2) A_ Apply threshold Aedes ----
+# a. Define the maximum vertical position to distinguish
+# between individuals who have not reacted and those who have reacted
+lowl1 = -10 #mm
+upl1 = +10 #mm
+
+# b. Define the threshold for being "too low" to dive due to
+# the physical constraints of our cuvette
+l1<- max(Aedes$pos_y)-max(Aedes$pos_y)/10
+
+# c. Create an interating "number" for each row per trial / ID / group
+rawAe<-Aedes %>% group_by(ct,ID,cat) %>% mutate(numbering = row_number()) %>% ungroup()
+
+# d. Create threshold: take "1" if individual is below the  threshold, "0" else
+scasAe<-rawAe %>% group_by(ct,ID,cat) %>% 
+  mutate(threshold = case_when(numbering==min(numbering) & pos_y>l1 ~ 1,TRUE~0)) %>% ungroup()
+
+# e. Count thresholds and sum into "rep" variable
+sfilterAe<-scasAe %>% group_by(ct,ID,cat) %>% 
+  summarise(rep=sum(threshold,na.rm=T),
+            dY=sum(-dY,na.rm = T),
+            pos_y=mean(pos_y,na.rm=T)) %>%  
+  filter(rep==0) %>% ungroup()
+
+# f. Split positions according to the limit previously assessed
+sposAe<-sfilterAe %>% 
+  mutate(slope=case_when(dY < lowl1 ~ "down",
+                         dY>upl1 ~ "up",
+                         dY >= lowl1 & dY <= upl1 ~ "flat"))
+
+# g. Extract and bind data
+s5<-sposAe %>% filter(slope=="up") %>% mutate(rep=1)
+s5b<-sposAe %>% filter(slope=="flat") %>% mutate(rep=0)
+F_Aedes<-bind_rows(s5,s5b) %>% mutate(sp="Aedes aegypti")
+rm(s5,s5b,sfilterAe,scasAe,sposAe,rawAe) #remove useless df
+
+# h. Compare data between full df and df with rules
+stvAe<-Aedes %>% 
+  group_by(ct,ID,cat) %>% 
+  summarise(dY=sum(-dY,na.rm = T),
+            pos_y=mean(pos_y,na.rm=T))
+full<-stvAe %>% group_by(ct,cat) %>% count(ct,cat)
+filtered<-F_Aedes %>% group_by(cat) %>% count(ct,cat)
+rm(Aedes,stvAe,full,filtered) #remove useless df
+
+
+## 2) B_ Apply threshold Culex ----
+# a. Define the maximum vertical position to distinguish
+# between individuals who have not reacted and those who have reacted
+lowl1 = -10 #mm
+upl1 = +10 #mm
+
+# b. Define the threshold for being "too low" to dive due to
+# the physical constraints of our cuvette
+l1<- max(Culex$pos_y)-max(Culex$pos_y)/10
+
+# c. Create an interating "number" for each row per trial / ID / group
+rawCx<-Culex %>% group_by(ct,ID,cat) %>% mutate(numbering = row_number()) %>% ungroup()
+
+# d. Create threshold: take "1" if individual is below the  threshold, "0" else
+scasCx<-rawCx %>% group_by(ct,ID,cat) %>% 
+  mutate(threshold = case_when(numbering==min(numbering) & pos_y>l1 ~ 1,TRUE~0)) %>% ungroup()
+
+# e. Count thresholds and sum into "rep" variable
+sfilterCx<-scasCx %>% group_by(ct,ID,cat) %>% 
+  summarise(rep=sum(threshold,na.rm=T),
+            dY=sum(-dY,na.rm = T),
+            pos_y=mean(pos_y,na.rm=T)) %>%  
+  filter(rep==0) %>% ungroup()
+
+# f. Split positions according to the limit previously assessed
+sposCx<-sfilterCx %>% 
+  mutate(slope=case_when(dY < lowl1 ~ "down",
+                         dY>upl1 ~ "up",
+                         dY >= lowl1 & dY <= upl1 ~ "flat"))
+
+
+# g. Extract and bind data
+s5<-sposCx %>% filter(slope=="up") %>% mutate(rep=1)
+s5b<-sposCx %>% filter(slope=="flat") %>% mutate(rep=0)
+F_Culex<-bind_rows(s5,s5b) %>% mutate(sp="Culex")
+rm(s5,s5b,sfilterCx,scasCx,sposCx,rawCx) #remove useless df
+
+# h. Compare data between full df and df with rules
+stvCx<-Culex %>% 
+  group_by(ct,ID,cat) %>% 
+  summarise(dY=sum(-dY,na.rm = T),
+            pos_y=mean(pos_y,na.rm=T))
+full<-stvCx %>% group_by(ct,cat) %>% count(ct,cat)
+filtered<-F_Culex %>% group_by(cat) %>% count(ct,cat)
+rm(Culex,stvCx,full,filtered) #remove useless df
+
+
+
+## 2) C_ Apply threshold Anopheles ----
+# a. Define the maximum vertical position to distinguish
+# between individuals who have not reacted and those who have reacted
+lowl1 = -1 #mm
+upl1 = +1 #mm
+
+# b. Define the threshold for being "too low" to dive due to
+# the physical constraints of our cuvette
+l1<- max(Anopheles$pos_y)-max(Anopheles$pos_y)/10
+
+# c. Create an interating "number" for each row per trial / ID / group
+rawAn<-Anopheles %>% group_by(ct,ID,cat) %>% mutate(numbering = row_number()) %>% ungroup()
+
+# d. Create threshold: take "1" if individual is below the  threshold, "0" else
+scasAn<-rawAn %>% group_by(ct,ID,cat) %>% 
+  mutate(threshold = case_when(numbering==min(numbering) & pos_y>l1 ~ 1,TRUE~0)) %>% ungroup()
+
+# e. Count thresholds and sum into "rep" variable
+sfilterAn<-scasAn %>% group_by(ct,ID,cat) %>% 
+  summarise(rep=sum(threshold,na.rm=T),
+            dY=sum(-dY,na.rm = T),
+            pos_y=mean(pos_y,na.rm=T)) %>%  
+  filter(rep==0) %>% ungroup()
+
+# f. Split positions according to the limit previously assessed
+sposAn<-sfilterAn %>% 
+  mutate(slope=case_when(dY < lowl1 ~ "down",
+                         dY>upl1 ~ "up",
+                         dY >= lowl1 & dY <= upl1 ~ "flat"))
+
+# g. Extract and bind data
+s5<-sposAn %>% filter(slope=="up") %>% mutate(rep=1)
+s5b<-sposAn %>% filter(slope=="flat") %>% mutate(rep=0)
+F_Anopheles<-bind_rows(s5,s5b) %>% mutate(sp="Anopheles")
+rm(s5,s5b,sfilterAn,scasAn,sposAn,rawAn) #remove useless df
+
+# h. Compare data between full df and df with rules
+stvAn<-Anopheles %>% 
+  group_by(ct,ID,cat) %>% 
+  summarise(dY=sum(-dY,na.rm = T),
+            pos_y=mean(pos_y,na.rm=T))
+full<-stvAn %>% group_by(ct,cat) %>% count(ct,cat)
+filtered<-F_Anopheles %>% group_by(cat) %>% count(ct,cat)
+rm(Anopheles,stvAn,full,filtered) #remove useless df
+```
+
+
+# 2) Apply GAM Aedes
+
+```{r,echo=FALSE,warning=FALSE, message=FALSE}
+## A_ Apply GAM Aedes ----
+GAMAe<- F_Aedes %>% 
+  filter(ct!=3) %>% filter(cat!=11) %>% filter(cat!=12)  
+GAMAe$cat<-as.numeric(GAMAe$cat) #Define trial as numeric
+
+# Try different models
+m1<-mgcv::gam(dY ~ s(cat),data=GAMAe)
+m2<-mgcv::gam(dY ~ s(cat,bs="tp",fx = FALSE, k=-1),data=GAMAe)
+m3<-mgcv::gam(dY ~ s(cat,bs="ts",fx = FALSE, k=-1),data=GAMAe)
+m4<-mgcv::gam(dY ~ s(cat,bs="cr",fx = FALSE, k=-1),data=GAMAe)
+m6<-mgcv::gam(dY ~ s(cat,bs="cc",fx = FALSE, k=-1),data=GAMAe)
+m7<-mgcv::gam(dY ~ s(cat,bs="ps",fx = FALSE, k=-1),data=GAMAe)
+
+# Compare their gcv.ubre
+m1$gcv.ubre
+m2$gcv.ubre
+m3$gcv.ubre
+m4$gcv.ubre
+m6$gcv.ubre
+m7$gcv.ubre
+
+#m7 is the best model
+rm(m1,m2,m3,m4,m5,m6)
+summary(m7)
+#ggemmeans(m7,terms=c("cat")) %>% plot()
+
+
+
+
+
+
+## B_ Apply GAM Culex ----
+GAMCx<- F_Culex %>% 
+  filter(ct!=3) %>% filter(cat!=11) %>% filter(cat!=12)  
+GAMCx$cat<-as.numeric(GAMCx$cat) #Define trial as numeric
+
+# Try different models
+m1<-mgcv::gam(dY ~ s(cat),data=GAMCx)
+m2<-mgcv::gam(dY ~ s(cat,bs="tp",fx = FALSE, k=-1),data=GAMCx)
+m3<-mgcv::gam(dY ~ s(cat,bs="ts",fx = FALSE, k=-1),data=GAMCx)
+m4<-mgcv::gam(dY ~ s(cat,bs="cr",fx = FALSE, k=-1),data=GAMCx)
+m6<-mgcv::gam(dY ~ s(cat,bs="cc",fx = FALSE, k=-1),data=GAMCx)
+m7<-mgcv::gam(dY ~ s(cat,bs="ps",fx = FALSE, k=-1),data=GAMCx)
+
+# Compare their gcv.ubre
+m1$gcv.ubre
+m2$gcv.ubre
+m3$gcv.ubre
+m4$gcv.ubre
+m6$gcv.ubre
+m7$gcv.ubre
+
+#m7 is the best model
+rm(m1,m2,m3,m4,m6)
+summary(m7)
+#ggemmeans(m7,terms=c("cat")) %>% plot()
+
+
+
+
+
+
+## C_ Apply GAM Anopheles ----
+GAMAn<- F_Anopheles %>% 
+  filter(ct!=3) %>% filter(cat!=11) %>% filter(cat!=12)  
+GAMAn$cat<-as.numeric(GAMAn$cat) #Define trial as numeric
+
+# Try different models
+m1<-mgcv::gam(dY ~ s(cat),data=GAMAn)
+m2<-mgcv::gam(dY ~ s(cat,bs="tp",fx = FALSE, k=-1),data=GAMAn)
+m3<-mgcv::gam(dY ~ s(cat,bs="ts",fx = FALSE, k=-1),data=GAMAn)
+m4<-mgcv::gam(dY ~ s(cat,bs="cr",fx = FALSE, k=-1),data=GAMAn)
+m6<-mgcv::gam(dY ~ s(cat,bs="cc",fx = FALSE, k=-1),data=GAMAn)
+m7<-mgcv::gam(dY ~ s(cat,bs="ps",fx = FALSE, k=-1),data=GAMAn)
+
+# Compare their gcv.ubre
+m1$gcv.ubre
+m2$gcv.ubre
+m3$gcv.ubre
+m4$gcv.ubre
+m6$gcv.ubre
+m7$gcv.ubre
+
+#m7 is the best model
+rm(m1,m2,m3,m4,m6)
+summary(m7)
+#ggemmeans(m7,terms=c("cat")) %>% plot()
+
+
+
+
+
+
+
+```
+
+# 3) Plot GAM
+
+```{r,echo=FALSE,warning=FALSE, message=FALSE}
+## A_ Plot GAM Aedes ----
+# Test ---
+T1<-F_Aedes %>% filter(ct==1) %>% filter(cat==12) %>% mutate(cat="Test")
+T2<-F_Aedes %>% filter(ct==2) %>% filter(cat==12) %>% mutate(cat="Test")
+T3<-F_Aedes %>% filter(ct==3) %>% mutate(cat="Test")
+To<-bind_rows(T1,T2,T3) %>% mutate(gp="Test")
+To$cat<-as.character(To$cat)
+
+# Train ---
+Train<-F_Aedes %>% filter(cat!=12&cat!=11) %>% 
+  filter(ct!=3) %>% mutate(gp="Train")
+Train$cat<-as.character(Train$cat)
+
+# Disturbance ---
+Dist1<-F_Aedes %>% filter(ct==2) %>% filter(cat==11) %>% mutate(cat="Dist")
+Dist2<-Dist1 %>% mutate(ct=1) %>% mutate(dY=NA) %>% mutate(cat="Dist")
+Dist2$ct<-as.factor(Dist2$ct)
+Dist<-bind_rows(Dist1,Dist2) %>% mutate(gp="Dist") %>% mutate(cat="Dist")
+Dist$cat<-as.character(Dist$cat)
+
+# Combine ---
+Total<-bind_rows(Train,Dist,To)
+Total$cat<-as.factor(Total$cat)
+Total$cat<-factor(Total$cat,levels=c(1,2,3,4,5,6,7,8,9,10,"Dist","Test"))
+Total$gp<-as.factor(Total$gp)
+Tot1<-Total %>% 
+  group_by(ct,cat,gp) %>%
+  summarise(dY=mean(dY,na.rm = T),
+            rep=100*mean(rep,na.rm=TRUE)) %>% ungroup()
+Gaes1<-Tot1 %>% 
+  filter(ct==1|ct==2) %>% 
+  group_by(cat) %>% summarise(dY=mean(dY),
+                              rep=mean(rep/100,na.rm=TRUE))
+Gaes1$cat<-factor(Gaes1$cat,levels=c(1,2,3,4,5,6,7,8,9,10,"Dist","Test"))
+Gaes3<-Tot1 %>% 
+  filter(ct==3)
+rm(T1,T2,T3,To,Dist,Dist1,Dist2,Train,Tot1,Total)
+
+# Display ---
+ggplot(NULL)+ 
+  geom_point(data=Gaes1,aes(y=dY,x=cat),size=3,shape=15,color="#531B93")+
+  geom_point(data=Gaes3,aes(y=dY,x=cat),size=3,shape=15,color="blue")+
+  geom_smooth(data=GAMAe,aes(y=dY,x=cat,group=1),colour="#531B93",
+              method = "gam",
+              formula = y ~ s(x, bs = "ps",fx=FALSE,k=-1))+
+  theme_classic() +
+  labs(y="Vertical Distance (mm)",x="Trial")+
+  #geom_vline(xintercept =11.5,size=1.5,color="red")+
+  theme(plot.title = element_text(hjust = 0.5))+
+  theme(plot.title = element_text(size=22,face = "bold"))+
+  theme(axis.text=element_text(size=20),
+        axis.title=element_text(size=20))
+
+## B_ Plot GAM Culex ----
+# Test ---
+T1<-F_Culex %>% filter(ct==1) %>% filter(cat==12) %>% mutate(cat="Test")
+T2<-F_Culex %>% filter(ct==2) %>% filter(cat==12) %>% mutate(cat="Test")
+T3<-F_Culex %>% filter(ct==3) %>% mutate(cat="Test")
+To<-bind_rows(T1,T2,T3) %>% mutate(gp="Test")
+To$cat<-as.character(To$cat)
+
+# Train ---
+Train<-F_Culex %>% filter(cat!=12&cat!=11) %>% 
+  filter(ct!=3) %>% mutate(gp="Train")
+Train$cat<-as.character(Train$cat)
+
+# Disturbance ---
+Dist1<-F_Culex %>% filter(ct==2) %>% filter(cat==11) %>% mutate(cat="Dist")
+Dist2<-Dist1 %>% mutate(ct=1) %>% mutate(dY=NA) %>% mutate(cat="Dist")
+Dist2$ct<-as.factor(Dist2$ct)
+Dist<-bind_rows(Dist1,Dist2) %>% mutate(gp="Dist") %>% mutate(cat="Dist")
+Dist$cat<-as.character(Dist$cat)
+
+# Combine ---
+Total<-bind_rows(Train,Dist,To)
+Total$cat<-as.factor(Total$cat)
+Total$cat<-factor(Total$cat,levels=c(1,2,3,4,5,6,7,8,9,10,"Dist","Test"))
+Total$gp<-as.factor(Total$gp)
+Tot1<-Total %>% 
+  group_by(ct,cat,gp) %>%
+  summarise(dY=mean(dY,na.rm = T),
+            rep=100*mean(rep,na.rm=TRUE)) %>% ungroup()
+Gcxs1<-Tot1 %>% 
+  filter(ct==1|ct==2) %>% 
+  group_by(cat) %>% summarise(dY=mean(dY),
+                              rep=mean(rep/100,na.rm=TRUE))
+Gcxs1$cat<-factor(Gcxs1$cat,levels=c(1,2,3,4,5,6,7,8,9,10,"Dist","Test"))
+Gcxs3<-Tot1 %>% 
+  filter(ct==3)
+rm(T1,T2,T3,To,Dist,Dist1,Dist2,Train,Tot1,Total)
+
+# Display ---
+ggplot(NULL)+ 
+  geom_point(data=Gcxs1,aes(y=dY,x=cat),size=3,shape=15,color="#941751")+
+  geom_point(data=Gcxs3,aes(y=dY,x=cat),size=3,shape=15,color="blue")+
+  geom_smooth(data=GAMCx,aes(y=dY,x=cat,group=1),colour="#941751",
+              method = "gam",
+              formula = y ~ s(x, bs = "ps",fx=FALSE,k=-1))+
+  theme_classic() +
+  labs(y="Vertical Distance (mm)",x="Trial")+
+  #geom_vline(xintercept =11.5,size=1.5,color="red")+
+  theme(plot.title = element_text(hjust = 0.5))+
+  theme(plot.title = element_text(size=22,face = "bold"))+
+  theme(axis.text=element_text(size=20),
+        axis.title=element_text(size=20))
+
+## C_ Plot GAM Anopheles ----
+# Test ---
+T1<-F_Anopheles %>% filter(ct==1) %>% filter(cat==12) %>% mutate(cat="Test")
+T2<-F_Anopheles %>% filter(ct==2) %>% filter(cat==12) %>% mutate(cat="Test")
+T3<-F_Anopheles %>% filter(ct==3) %>% mutate(cat="Test")
+To<-bind_rows(T1,T2,T3) %>% mutate(gp="Test")
+To$cat<-as.character(To$cat)
+
+# Train ---
+Train<-F_Anopheles %>% filter(cat!=12&cat!=11) %>% 
+  filter(ct!=3) %>% mutate(gp="Train")
+Train$cat<-as.character(Train$cat)
+
+# Disturbance ---
+Dist1<-F_Anopheles %>% filter(ct==2) %>% filter(cat==11) %>% mutate(cat="Dist")
+Dist2<-Dist1 %>% mutate(ct=1) %>% mutate(dY=NA) %>% mutate(cat="Dist")
+Dist2$ct<-as.factor(Dist2$ct)
+Dist<-bind_rows(Dist1,Dist2) %>% mutate(gp="Dist") %>% mutate(cat="Dist")
+Dist$cat<-as.character(Dist$cat)
+
+# Combine ---
+Total<-bind_rows(Train,Dist,To)
+Total$cat<-as.factor(Total$cat)
+Total$cat<-factor(Total$cat,levels=c(1,2,3,4,5,6,7,8,9,10,"Dist","Test"))
+Total$gp<-as.factor(Total$gp)
+Tot1<-Total %>% 
+  group_by(ct,cat,gp) %>%
+  summarise(dY=mean(dY,na.rm = T),
+            rep=100*mean(rep,na.rm=TRUE)) %>% ungroup()
+Gans1<-Tot1 %>% 
+  filter(ct==1|ct==2) %>% 
+  group_by(cat) %>% summarise(dY=mean(dY),
+                              rep=mean(rep/100,na.rm=TRUE))
+Gans1$cat<-factor(Gans1$cat,levels=c(1,2,3,4,5,6,7,8,9,10,"Dist","Test"))
+Gans3<-Tot1 %>% 
+  filter(ct==3)
+rm(T1,T2,T3,To,Dist,Dist1,Dist2,Train,Tot1,Total)
+
+# Display ---
+ggplot(NULL)+ 
+  geom_point(data=Gans1,aes(y=dY,x=cat),size=3,shape=15,color="#009193")+
+  geom_point(data=Gans3,aes(y=dY,x=cat),size=3,shape=15,color="blue")+
+  geom_smooth(data=GAMAn,aes(y=dY,x=cat,group=1),colour="#009193",
+              method = "gam",
+              formula = y ~ s(x, bs = "ps",fx=FALSE,k=-1))+
+  theme_classic() +
+  labs(y="Vertical Distance (mm)",x="Trial")+
+  #geom_vline(xintercept =11.5,size=1.5,color="red")+
+  theme(plot.title = element_text(hjust = 0.5))+
+  theme(plot.title = element_text(size=22,face = "bold"))+
+  theme(axis.text=element_text(size=20),
+        axis.title=element_text(size=20))
+
+
+
+```
+
+## 5) Plot GAM ALL ----
+
+```{r,echo=FALSE,warning=FALSE, message=FALSE}
+ggplot(NULL)+ 
+  geom_smooth(data=GAMAe,aes(y=rep,x=cat,group=1),colour="#531B93",method = "gam",
+              formula = y ~ s(x, bs = "ps",fx=FALSE,k=-1))+
+  geom_smooth(data=GAMCx,aes(y=rep,x=cat,group=1),colour="#941751",method = "gam",
+              formula = y ~ s(x, bs = "ps",fx=FALSE,k=-1))+
+  geom_smooth(data=GAMAn,aes(y=rep,x=cat,group=1),colour="#009193",method = "gam",
+              formula = y ~ s(x, bs = "ps",fx=FALSE,k=-1))+
+  geom_point(data=Gaes1,aes(y=rep,x=cat),size=3,shape=15,color="#531B93")+
+  geom_point(data=Gcxs1,aes(y=rep,x=cat),size=3,shape=15,color="#941751")+
+  geom_point(data=Gans1,aes(y=rep,x=cat),size=3,shape=15,color="#009193")+
+  theme_classic() +
+  labs(y="Responding individuals (% PI = 1)",x="Trial")+
+  theme(plot.title = element_text(hjust = 0.5))+
+  theme(plot.title = element_text(size=22,face = "bold"))+
+  theme(axis.text=element_text(size=20,color="black"),
+        axis.title=element_text(size=20))+
+  scale_color_manual(values=c("black","red","blue"))+
+  scale_x_discrete(name ="Trial", 
+                   limits=c("1","2","3","4","5","6","7","8","9","10"))
+
+ggplot(NULL)+ 
+  geom_smooth(data=GAMAe,aes(y=dY,x=cat,group=1),colour="#531B93",method = "gam",
+              formula = y ~ s(x, bs = "ps",fx=FALSE,k=-1))+
+  geom_smooth(data=GAMCx,aes(y=dY,x=cat,group=1),colour="#941751",method = "gam",
+              formula = y ~ s(x, bs = "ps",fx=FALSE,k=-1))+
+  geom_smooth(data=GAMAn,aes(y=dY,x=cat,group=1),colour="#009193",method = "gam",
+              formula = y ~ s(x, bs = "ps",fx=FALSE,k=-1))+
+  geom_point(data=Gaes1,aes(y=dY,x=cat),size=3,shape=15,color="#531B93")+
+  geom_point(data=Gcxs1,aes(y=dY,x=cat),size=3,shape=15,color="#941751")+
+  geom_point(data=Gans1,aes(y=dY,x=cat),size=3,shape=15,color="#009193")+
+  theme_classic() +
+  labs(y="Vertical Distance (mm)",x="Trial")+
+  theme(plot.title = element_text(hjust = 0.5))+
+  theme(plot.title = element_text(size=22,face = "bold"))+
+  theme(axis.text=element_text(size=20,color="black"),
+        axis.title=element_text(size=20))+
+  scale_color_manual(values=c("black","red","blue"))+
+  scale_x_discrete(name ="Trial", 
+                   limits=c("1","2","3","4","5","6","7","8","9","10"))
+
+```
+
+
+# 4) Comparaison Trial 1 & Trial 10 ----
+```{r,echo=FALSE,warning=FALSE, message=FALSE}
+C1_Ae<-F_Aedes %>% 
+  filter(ct!=3) %>% 
+  filter(cat==1|cat==10) %>% 
+  group_by(ct,sp,ID,cat) %>%
+  summarise(dY=mean(dY,na.rm = T),
+            rep=mean(rep,na.rm=T)) %>% ungroup()
+
+C1_Cx<-F_Culex %>% 
+  filter(ct!=3) %>% 
+  filter(cat==1|cat==10) %>% 
+  group_by(ct,sp,ID,cat) %>%
+  summarise(dY=mean(dY,na.rm = T),
+            rep=mean(rep,na.rm=T)) %>% ungroup()
+
+C1_An<-F_Anopheles %>% 
+  filter(ct!=3) %>% 
+  filter(cat==1|cat==10) %>% 
+  group_by(ct,sp,ID,cat) %>%
+  summarise(dY=mean(dY,na.rm = T),
+            rep=mean(rep,na.rm=T)) %>% ungroup()
+
+
+C1<-bind_rows(C1_Ae,C1_Cx,C1_An)
+
+mae<-glm(rep~cat*sp, data=C1, family="binomial")
+yv <- predict(mae,type="link",se.fit=TRUE)
+yAE<-data.frame(yv$fit,yv$se.fit,C1$cat,C1$ct,C1$sp)
+yd1P<-yAE %>% rename(sp=C1.sp) %>% rename(cat=C1.cat)
+inv<-family(mae)$linkinv
+ggplot(data=C1,aes(x=cat,y=rep))+
+  geom_pointrange(data=yd1P,aes(x=cat,y=inv(yv.fit),
+                                ymin=inv(yv.fit-1.96*yv.se.fit), 
+                                ymax=inv((yv.fit+1.96*yv.se.fit)),
+                                group=sp,color=sp),size=1)+
+  theme_classic() +
+  labs(y="Responding individuals (% PI = 1)",x="Trial")+
+  theme(plot.title = element_text(hjust = 0.5))+
+  theme(plot.title = element_text(size=22,face = "bold"))+
+  theme(axis.text=element_text(size=20,color="black"),
+        axis.title=element_text(size=20,color="black"))+
+  scale_color_manual(values=c("#531B93","#009193","#941751"))+
+  scale_fill_manual(values=c("#531B93","#009193","#941751"))+
+  theme(legend.title = element_text(size=20),
+        legend.text = element_text(size=20))+
+  guides(colour=guide_legend(title="Species"))+
+  theme(legend.position = "none",
+        strip.text = element_text(size = 18))+
+  facet_wrap(~sp)
+
+mae<-glm(dY~cat*sp, data=C1)
+yv <- predict(mae,type="link",se.fit=TRUE)
+yAE<-data.frame(yv$fit,yv$se.fit,C1$cat,C1$ct,C1$sp)
+yd1V<-yAE %>% rename(sp=C1.sp) %>% rename(cat=C1.cat)
+inv<-family(mae)$linkinv
+
+ggplot(data=C1,aes(x=cat,y=dY))+
+  geom_pointrange(data=yd1V,aes(x=cat,y=inv(yv.fit),
+                                ymin=inv(yv.fit-1.96*yv.se.fit), 
+                                ymax=inv((yv.fit+1.96*yv.se.fit)),
+                                group=sp,color=sp),size=1)+
+  theme_classic() +
+  labs(y="Vertical Distance (mm)",x="Trial")+
+  theme(plot.title = element_text(hjust = 0.5))+
+  theme(plot.title = element_text(size=22,face = "bold"))+
+  theme(axis.text=element_text(size=20,color="black"),
+        axis.title=element_text(size=20,color="black"))+
+  scale_color_manual(values=c("#531B93","#009193","#941751"))+
+  scale_fill_manual(values=c("#531B93","#009193","#941751"))+
+  theme(legend.title = element_text(size=20),
+        legend.text = element_text(size=20))+
+  guides(colour=guide_legend(title="Species"))+
+  theme(legend.position = "none",
+        strip.text = element_text(size = 18))+
+  facet_wrap(~sp)
+```
+
+
+# 5) Comparaison Test between groups ----
+```{r,echo=FALSE,warning=FALSE, message=FALSE}
+C2_1<-F_Aedes %>% 
+  filter(cat==12)
+C2_2<-F_Aedes %>% filter(ct==3)
+C2_Ae<-bind_rows(C2_1,C2_2) %>% 
+  group_by(sp,ct,ID,cat) %>%
+  summarise(dY=mean(dY,na.rm = T),
+            rep=mean(rep,na.rm=T))
+
+C2_1<-F_Culex %>% 
+  filter(cat==12)
+C2_2<-F_Culex %>% filter(ct==3)
+C2_Cx<-bind_rows(C2_1,C2_2) %>% 
+  group_by(sp,ct,ID,cat) %>%
+  summarise(dY=mean(dY,na.rm = T),
+            rep=mean(rep,na.rm=T))
+
+C2_1<-F_Anopheles %>% 
+  filter(cat==12)
+C2_2<-F_Anopheles %>% filter(ct==3)
+C2_An<-bind_rows(C2_1,C2_2) %>% 
+  group_by(sp,ct,ID,cat) %>%
+  summarise(dY=mean(dY,na.rm = T),
+            rep=mean(rep,na.rm=T))
+
+
+C2<-bind_rows(C2_Ae,C2_Cx,C2_An)
+c1<-"Exp."
+c2<-"Ct.1"
+c3<-"Ct.2"
+levels(C2$ct) <- c(c1,c2,c3)
+
+mae<-glm(rep~ct*sp, data=C2,family="binomial")
+yv <- predict(mae,type="link",se.fit=TRUE)
+yAE<-data.frame(yv$fit,yv$se.fit,C2$cat,C2$ct,C2$sp)
+yd2P<-yAE %>% rename(sp=C2.sp) %>% rename(cat=C2.cat) %>% rename(ct=C2.ct)
+inv<-family(mae)$linkinv
+
+ggplot(data=C2,aes(x=ct,y=rep))+
+  geom_pointrange(data=yd2P,aes(x=ct,y=inv(yv.fit),
+                                ymin=inv(yv.fit-1.96*yv.se.fit), 
+                                ymax=inv((yv.fit+1.96*yv.se.fit)),
+                                group=sp,color=sp),size=1)+
+  theme_classic() +
+  labs(y="Responding individuals (% PI = 1)",x="Group")+
+  theme(plot.title = element_text(hjust = 0.5))+
+  theme(plot.title = element_text(size=22,face = "bold"))+
+  theme(axis.text=element_text(size=20,color="black"),
+        axis.title=element_text(size=20,color="black"))+
+  scale_color_manual(values=c("#531B93","#009193","#941751"))+
+  theme(legend.title = element_text(size=20),
+        legend.text = element_text(size=20))+
+  guides(colour=guide_legend(title="Species"))+
+  theme(legend.position = "none",
+        strip.text = element_text(size = 18))+
+  facet_wrap(~sp)
+
+mae<-glm(dY~ct*sp, data=C2)
+yv <- predict(mae,type="link",se.fit=TRUE)
+yAE<-data.frame(yv$fit,yv$se.fit,C2$cat,C2$ct,C2$sp)
+yd2V<-yAE %>% rename(sp=C2.sp) %>% rename(cat=C2.cat) %>% rename(ct=C2.ct)
+inv<-family(mae)$linkinv
+
+ggplot(data=C2,aes(x=ct,y=dY))+
+  geom_pointrange(data=yd2V,aes(x=ct,y=inv(yv.fit),
+                                ymin=inv(yv.fit-1.96*yv.se.fit), 
+                                ymax=inv((yv.fit+1.96*yv.se.fit)),
+                                group=sp,color=sp),size=1)+
+  theme_classic() +
+  labs(y="Vertical Distance (mm)",x="Group")+
+  theme(plot.title = element_text(hjust = 0.5))+
+  theme(plot.title = element_text(size=22,face = "bold"))+
+  theme(axis.text=element_text(size=20,color="black"),
+        axis.title=element_text(size=20,color="black"))+
+  scale_color_manual(values=c("#531B93","#009193","#941751"))+
+  theme(legend.title = element_text(size=20),
+        legend.text = element_text(size=20))+
+  guides(colour=guide_legend(title="Species"))+
+  theme(legend.position = "none",
+        strip.text = element_text(size = 18))+
+  facet_wrap(~sp)
+```
+
+
+# 6) Comparaison Disturbance Group Ctrl.1 ----
+```{r,echo=FALSE,warning=FALSE, message=FALSE}
+C3_Ae<-F_Aedes %>% 
+  mutate(cat=case_when(cat==10 ~ "10",
+                       cat==11 ~ "Dist",
+                       cat==12 ~ "Test")) %>% 
+  filter(ct==2) %>% 
+  filter(cat=="10"|cat=="Dist"|cat=="Test") %>% 
+  group_by(ct,sp,ID,cat) %>%
+  summarise(dY=mean(dY,na.rm = T),
+            rep=mean(rep,na.rm=T)) %>% ungroup()
+
+C3_Cx<-F_Culex %>% 
+  mutate(cat=case_when(cat==10 ~ "10",
+                       cat==11 ~ "Dist",
+                       cat==12 ~ "Test")) %>% 
+  filter(ct==2) %>% 
+  filter(cat=="10"|cat=="Dist"|cat=="Test") %>% 
+  group_by(ct,sp,ID,cat) %>%
+  summarise(dY=mean(dY,na.rm = T),
+            rep=mean(rep,na.rm=T)) %>% ungroup()
+
+C3_An<-F_Anopheles %>% 
+  mutate(cat=case_when(cat==10 ~ "10",
+                       cat==11 ~ "Dist",
+                       cat==12 ~ "Test")) %>% 
+  filter(ct==2) %>% 
+  filter(cat=="10"|cat=="Dist"|cat=="Test") %>% 
+  group_by(ct,sp,ID,cat) %>%
+  summarise(dY=mean(dY,na.rm = T),
+            rep=mean(rep,na.rm=T)) %>% ungroup()
+
+C3<-bind_rows(C3_Ae,C3_Cx,C3_An)
+mae<-glm(rep~cat*sp, data=C3,family="binomial")
+yv <- predict(mae,type="link",se.fit=TRUE)
+yAE<-data.frame(yv$fit,yv$se.fit,C3$cat,C3$ct,C3$sp)
+yd3P<-yAE %>% rename(sp=C3.sp) %>% rename(cat=C3.cat)
+inv<-family(mae)$linkinv
+
+ggplot(data=C3,aes(x=cat,y=rep))+
+  geom_pointrange(data=yd3P,aes(x=cat,y=inv(yv.fit),
+                                ymin=inv(yv.fit-1.96*yv.se.fit), 
+                                ymax=inv((yv.fit+1.96*yv.se.fit)),
+                                group=sp,color=sp),size=1)+
+  theme_classic() +
+  labs(y="Responding individuals (% PI = 1)",x="Trial")+
+  theme(plot.title = element_text(hjust = 0.5))+
+  theme(plot.title = element_text(size=22,face = "bold"))+
+  theme(axis.text=element_text(size=20,color="black"),
+        axis.title=element_text(size=20,color="black"))+
+  scale_color_manual(values=c("#B830A0","#48DC92","#CF5450"))+
+  scale_fill_manual(values=c("#B830A0","#48DC92","#CF5450"))+
+  theme(legend.title = element_text(size=20),
+        legend.text = element_text(size=20))+
+  guides(colour=guide_legend(title="Species"))+
+  theme(legend.position = "none",
+        strip.text = element_text(size = 18))+
+  facet_wrap(~sp)
+
+mae<-glm(dY~cat*sp, data=C3)
+yv <- predict(mae,type="link",se.fit=TRUE)
+yAE<-data.frame(yv$fit,yv$se.fit,C3$cat,C3$ct,C3$sp)
+yd3V<-yAE %>% rename(sp=C3.sp) %>% rename(cat=C3.cat)
+inv<-family(mae)$linkinv
+
+ggplot(data=C3,aes(x=cat,y=dY))+
+  geom_pointrange(data=yd3V,aes(x=cat,y=inv(yv.fit),
+                                ymin=inv(yv.fit-1.96*yv.se.fit), 
+                                ymax=inv((yv.fit+1.96*yv.se.fit)),
+                                group=sp,color=sp),size=1)+
+  theme_classic() +
+  labs(y="Vertical Distance (mm)",x="Trial")+
+  theme(plot.title = element_text(hjust = 0.5))+
+  theme(plot.title = element_text(size=22,face = "bold"))+
+  theme(axis.text=element_text(size=20,color="black"),
+        axis.title=element_text(size=20,color="black"))+
+  scale_color_manual(values=c("#B830A0","#48DC92","#CF5450"))+
+  scale_fill_manual(values=c("#B830A0","#48DC92","#CF5450"))+
+  theme(legend.title = element_text(size=20),
+        legend.text = element_text(size=20))+
+  guides(colour=guide_legend(title="Species"))+
+  theme(legend.position = "none",
+        strip.text = element_text(size = 18))+
+  facet_wrap(~sp)
+
+```
+
