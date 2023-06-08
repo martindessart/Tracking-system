@@ -1,6 +1,6 @@
 # Complement data for: Assessing learning in mosquito larvae using video-tracking
 
-Martin Dessart, Miguel Piñeirúa, Claudio R. Lazzari, Fernando J. Guerrieri*
+Martin Dessart, Miguel Piñeirúa, Claudio R. Lazzari, Fernando J. Guerrieri
 
 Institut de Recherche sur la Biologie de l’Insecte, UMR7261 CNRS - University de Tours, Tours, France.
 
