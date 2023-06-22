@@ -1,8 +1,8 @@
 # Complement data for: Assessing learning in mosquito larvae using video-tracking
 
-[https://martindessart.github.io/](Martin Dessart), Miguel Piñeirúa, Claudio R. Lazzari, Fernando J. Guerrieri
+[Martin Dessart](https://martindessart.github.io/), Miguel Piñeirúa, Claudio R. Lazzari, Fernando J. Guerrieri
 
-[https://irbi.univ-tours.fr/](Institut de Recherche sur la Biologie de l’Insecte), UMR7261 CNRS - University de Tours, Tours, France.
+[Institut de Recherche sur la Biologie de l’Insecte](https://irbi.univ-tours.fr/), UMR7261 CNRS - University de Tours, Tours, France.
 
 # Abstract
 Mosquito larvae display a stereotyped escape response when they rest attached to the water surface. It consists in detaching from the surface and diving, to return to the surface after a brief time. It has been shown that this response can be evoked several times, by repeatedly presenting a moving shadow. Diving triggered by a potential danger revealed as a simple bioassay for investigating behavioural responses in mosquito larvae, in particular their ability to learn. In the present work, we describe an automated system, based on video-tracking individuals, and extracting quantitative data of their movements. We validated our system, by reinvestigating the habituation response of larvae of *Aedes aegypti* reared in the laboratory, and providing original data on field-collected larvae of genera *Culex* and *Anopheles*. Habituation could be demonstrated to occur in all the species, even though it was not possible to induce dishabituation in Culex and Anopheles mosquitoes. In addition to non-associative learning, we characterised motor activity in the studied species, thanks to the possibility offered by the tracking system to extract multiple variables. The here-described system and algorithms can be easily adapted to multiple experimental situations and variables of interest.
@@ -37,4 +37,4 @@ R programs used to answer our questions.
 * Spyder 5.1.5
 
 ## Licence
-This project is licensed under [https://opensource.org/license/mit/](MIT Licence).
+This project is licensed under [MIT Licence](https://opensource.org/license/mit/).
